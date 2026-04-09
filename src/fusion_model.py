@@ -140,23 +140,27 @@ def _prepare_voice_features(voice_input):
 
 
 def predict_voice(voice_input):
+    return int(predict_voice_proba(voice_input) >= 0.5)
+
+
+def predict_voice_proba(voice_input):
     features = _prepare_voice_features(voice_input)
     features = scaler.transform(features)
     features = pca.transform(features)
 
-    dnn_pred = (voice_dnn.predict(features, verbose=0) > 0.5).astype(int)[0][0]
-    xgb_pred = xgb.predict(features)[0]
-    rf_pred = rf.predict(features)[0]
-    svm_pred = svm.predict(features)[0]
+    dnn_prob = float(voice_dnn.predict(features, verbose=0)[0][0])
+    xgb_prob = float(xgb.predict_proba(features)[0][1])
+    rf_prob = float(rf.predict_proba(features)[0][1])
+    svm_prob = float(svm.predict_proba(features)[0][1])
 
     score = (
-        0.4 * dnn_pred +
-        0.2 * xgb_pred +
-        0.2 * rf_pred +
-        0.2 * svm_pred
+        0.4 * dnn_prob +
+        0.2 * xgb_prob +
+        0.2 * rf_prob +
+        0.2 * svm_prob
     )
 
-    return int(score >= 0.5)
+    return float(score)
 
 
 def final_prediction(image_prediction, voice_prediction):
@@ -164,14 +168,22 @@ def final_prediction(image_prediction, voice_prediction):
     return label_from_prediction(final)
 
 
+def final_prediction_proba(image_input, voice_input, image_weight=0.5, voice_weight=0.5):
+    image_prob = float(predict_image_proba(image_input)[1])
+    voice_prob = float(predict_voice_proba(voice_input))
+    return (image_weight * image_prob) + (voice_weight * voice_prob)
+
+
 def fusion_prediction(image_input, voice_input):
     image_result = predict_image(image_input)
     voice_result = predict_voice(voice_input)
+    fusion_prob = final_prediction_proba(image_input, voice_input)
 
     print("\nImage Prediction :", image_result)
     print("Voice Prediction :", voice_result)
+    print("Fusion Probability :", round(fusion_prob, 4))
 
-    diagnosis = final_prediction(image_result, voice_result)
+    diagnosis = label_from_prediction(int(fusion_prob >= 0.5))
 
     print("Final Diagnosis :", diagnosis)
     return diagnosis
