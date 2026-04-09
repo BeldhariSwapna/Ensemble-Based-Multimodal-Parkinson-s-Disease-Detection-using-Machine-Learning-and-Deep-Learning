@@ -46,7 +46,7 @@ def train_voice_model():
     X_scaled = scaler.fit_transform(X)
 
     # -----------------------
-    # PCA
+    # PCA   
     # -----------------------
 
     pca = PCA(n_components=80)
